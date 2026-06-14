@@ -112,12 +112,12 @@ const formattedDuration = computed(() => {
 });
 
 const trackHref = computed(() => {
-    if (typeof props.redirectUrl === 'string') {
-        return props.redirectUrl;
-    }
-
-    return `/tracks/${props.track.slug}`;
+    return props.redirectUrl ?? `/tracks/${props.track.slug}`;
 });
+
+const goToTrack = () => {
+    router.visit(trackHref.value);
+};
 
 const handleImageError = (event) => {
     event.target.src = props.fallbackImage;
@@ -154,14 +154,12 @@ const handleClickOutside = (event) => {
 };
 
 const handleAddToPlaylist = () => {
-    console.log('Add to playlist:', props.track.title);
     // emit/izsūtīt notikumu vecākkomponentam apstrādei
     emit('add-to-playlist', props.track);
     closeMenu();
 };
 
 const handleRemove = () => {
-    console.log('Remove:', props.track.title);
     // emit/izsūtīt notikumu vecākkomponentam apstrādei
     emit('remove', props.track);
     closeMenu();
@@ -176,12 +174,23 @@ onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
 });
 
+const isMobile = ref(false)
+
+const checkMobile = () => {
+    isMobile.value = window.innerWidth <= 600
+}
+
+onMounted(() => {
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+})
+
 </script>
 
 <template>
     <div class="track-card-wrapper">
-        <Link
-            :href="trackHref"
+        <div
+            @click="goToTrack"
             class="track-card"
             :class="{ 'compact': compact, 'no-hover': !hoverable }"
         >
@@ -212,6 +221,7 @@ onUnmounted(() => {
                         v-if="clickable"
                         :href="trackHref"
                         class="track-title clickable"
+                        @click.stop
                     >
                         {{ track.title }}
                     </Link>
@@ -227,8 +237,18 @@ onUnmounted(() => {
                 <!-- Izpildītāju slots vairāku izpildītāju izcelšanai -->
                 <slot name="artists">
                     <div v-if="showArtists && track.artists && track.artists.length" class="track-artists">
-                        <template v-for="(artist, artistIndex) in displayedArtists" :key="artist.id">
-                            <span class="artist-name">
+                        <template v-for="(artist, artistIndex) in displayedArtists">
+
+                            <Link
+                                v-if="!isMobile"
+                                :href="`/artists/${artist.slug}`"
+                                class="artist-name"
+                                @click.stop
+                            >
+                                {{ artist.name }}
+                            </Link>
+
+                            <span v-else class="artist-name-unclickable">
                                 {{ artist.name }}
                             </span>
                             <span v-if="artistIndex < displayedArtists.length - 1">,&nbsp;</span>
@@ -249,7 +269,7 @@ onUnmounted(() => {
 
             <!-- Labais slots pielāgotām darbībām -->
             <slot name="actions"></slot>
-        </Link>
+        </div>
 
         <!-- Konteksta izvēlne -->
         <div v-if="showContextMenu" class="context-menu-container" ref="menuContainer">
@@ -294,14 +314,25 @@ onUnmounted(() => {
     text-decoration: none;
     color: inherit;
     padding: 0.75rem 3rem 0.75rem 1rem;
-    border-bottom: 1px solid #eee;
+    border-radius: 8px;
+    border-bottom: none;
+    margin-bottom: 2px;
     gap: 0.75rem;
-    transition: background-color 0.2s ease;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+
     min-width: 0;
+    cursor: pointer;
 }
 
-.track-card.hoverable:hover {
-    background-color: #f9f9f9;
+.track-card:hover {
+    background-color: #f5f7fa;
+}
+
+.track-card:active {
+    transform: scale(0.99);
 }
 
 .track-card.compact {
@@ -399,17 +430,26 @@ onUnmounted(() => {
     text-overflow: ellipsis;
 }
 
-.track-title.clickable:hover {
-    color: #0c4baa;
-    text-decoration: underline;
-}
-
 .track-artists {
     margin-top: 0.2rem;
     font-size: clamp(0.75rem, 2vw, 0.85rem);
     color: #666;
     line-height: 1.5;
     word-break: break-word;
+}
+
+.artist-name {
+    color: inherit;
+    text-decoration:none;
+}
+
+.artist-name:hover {
+    color:#0c4baa;
+}
+
+.artist-name-unclickable {
+    color: inherit;
+    text-decoration:none;
 }
 
 .artists-more {
