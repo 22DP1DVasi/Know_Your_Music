@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import { useDate } from '@/composables/useDate';
 import { useI18n } from 'vue-i18n';
 
@@ -111,18 +111,12 @@ const formattedDuration = computed(() => {
     return formatDuration(props.track.duration, props.durationFormat);
 });
 
-const handleTrackClick = () => {
-    if (!props.clickable) return;
-    emit('track-click', props.track);
-    if (props.redirectUrl) {
-        if (typeof props.redirectUrl === 'function') {
-            props.redirectUrl(props.track.slug);
-        } else {
-            router.get(props.redirectUrl);
-        }
-    } else {
-        router.get(`/tracks/${props.track.slug}`);
-    }
+const trackHref = computed(() => {
+    return props.redirectUrl ?? `/tracks/${props.track.slug}`;
+});
+
+const goToTrack = () => {
+    router.visit(trackHref.value);
 };
 
 const handleImageError = (event) => {
@@ -139,11 +133,6 @@ const hiddenArtistsCount = computed(() => {
     const artists = props.track.artists || [];
     return Math.max(0, artists.length - 3);
 });
-
-const redirectToArtist = (slug, event) => {
-    event.stopPropagation(); // novērst dziesmas kartes klikšķa palaidi
-    router.get(`/artists/${slug}`);
-};
 
 // konteksta izvēlnes apstrādātāji
 const toggleMenu = () => {
@@ -165,14 +154,12 @@ const handleClickOutside = (event) => {
 };
 
 const handleAddToPlaylist = () => {
-    console.log('Add to playlist:', props.track.title);
     // emit/izsūtīt notikumu vecākkomponentam apstrādei
     emit('add-to-playlist', props.track);
     closeMenu();
 };
 
 const handleRemove = () => {
-    console.log('Remove:', props.track.title);
     // emit/izsūtīt notikumu vecākkomponentam apstrādei
     emit('remove', props.track);
     closeMenu();
@@ -187,70 +174,101 @@ onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
 });
 
-defineExpose({
-    handleTrackClick
-});
+const isMobile = ref(false)
+
+const checkMobile = () => {
+    isMobile.value = window.innerWidth <= 600
+}
+
+onMounted(() => {
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+})
 
 </script>
 
 <template>
-    <div class="track-card" :class="{ 'compact': compact, 'no-hover': !hoverable }">
-        <span v-if="showNumber" class="track-number">
-            {{ displayIndex }}
-        </span>
-
-        <!-- Izsekot attēlu ar klikšķa apstrādātāju -->
-        <a
-            v-if="showImage"
-            @click="handleTrackClick"
-            class="track-image-btn"
-            :class="{ 'clickable': clickable }"
+    <div class="track-card-wrapper">
+        <div
+            @click="goToTrack"
+            class="track-card"
+            :class="{ 'compact': compact, 'no-hover': !hoverable }"
         >
-            <img
-                :src="imageUrl"
-                class="track-image"
-                :alt="track.title"
-                loading="lazy"
-                @error="handleImageError"
+            <span v-if="showNumber" class="track-number">
+                {{ displayIndex }}
+            </span>
+
+            <!-- Izsekot attēlu ar klikšķa apstrādātāju -->
+            <Link
+                v-if="showImage"
+                :href="trackHref"
+                class="track-image-btn"
+                :class="{ 'clickable': clickable }"
             >
-        </a>
-
-        <!-- Informācija par dziesmu -->
-        <div class="track-info">
-            <h3>
-                <a
-                    @click="handleTrackClick"
-                    class="track-title"
-                    :class="{ 'clickable': clickable }"
+                <img
+                    :src="imageUrl"
+                    class="track-image"
+                    :alt="track.title"
+                    loading="lazy"
+                    @error="handleImageError"
                 >
-                    {{ track.title }}
-                </a>
-            </h3>
+            </Link>
 
-            <!-- Izpildītāju slots vairāku izpildītāju izcelšanai -->
-            <slot name="artists">
-                <div v-if="showArtists && track.artists && track.artists.length" class="track-artists">
-                    <template v-for="(artist, artistIndex) in displayedArtists" :key="artist.id">
-                        <a
-                            @click="redirectToArtist(artist.slug, $event)"
-                            class="artist-link"
-                        >
-                            {{ artist.name }}
-                        </a>
-                        <span v-if="artistIndex < displayedArtists.length - 1">,&nbsp;</span>
-                    </template>
-                    <span v-if="hiddenArtistsCount" class="artists-more">, {{ t('tracks.card.artists_more', { count: hiddenArtistsCount }) }}
+            <!-- Informācija par dziesmu -->
+            <div class="track-info">
+                <h3>
+                    <Link
+                        v-if="clickable"
+                        :href="trackHref"
+                        class="track-title clickable"
+                        @click.stop
+                    >
+                        {{ track.title }}
+                    </Link>
+
+                    <span
+                        v-else
+                        class="track-title"
+                    >
+                        {{ track.title }}
                     </span>
-                </div>
-            </slot>
+                </h3>
 
-            <!-- Papildu informācijas slots -->
-            <slot name="extra-info"></slot>
-        </div>
+                <!-- Izpildītāju slots vairāku izpildītāju izcelšanai -->
+                <slot name="artists">
+                    <div v-if="showArtists && track.artists && track.artists.length" class="track-artists">
+                        <template v-for="(artist, artistIndex) in displayedArtists">
 
-        <!-- Ilgums -->
-        <div v-if="showDuration" class="track-duration">
-            {{ formattedDuration }}
+                            <Link
+                                v-if="!isMobile"
+                                :href="`/artists/${artist.slug}`"
+                                class="artist-name"
+                                @click.stop
+                            >
+                                {{ artist.name }}
+                            </Link>
+
+                            <span v-else class="artist-name-unclickable">
+                                {{ artist.name }}
+                            </span>
+                            <span v-if="artistIndex < displayedArtists.length - 1">,&nbsp;</span>
+                        </template>
+                        <span v-if="hiddenArtistsCount" class="artists-more">, {{ t('tracks.card.artists_more', { count: hiddenArtistsCount }) }}
+                        </span>
+                    </div>
+                </slot>
+
+                <!-- Papildu informācijas slots -->
+                <slot name="extra-info"></slot>
+            </div>
+
+            <!-- Ilgums -->
+            <div v-if="showDuration" class="track-duration">
+                {{ formattedDuration }}
+            </div>
+
+            <!-- Labais slots pielāgotām darbībām -->
+            <slot name="actions"></slot>
         </div>
 
         <!-- Konteksta izvēlne -->
@@ -282,24 +300,39 @@ defineExpose({
                 </button>
             </div>
         </div>
-
-        <!-- Labais slots pielāgotām darbībām -->
-        <slot name="actions"></slot>
     </div>
 </template>
 
 <style scoped>
+.track-card-wrapper {
+    position: relative;
+}
+
 .track-card {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #eee;
+    text-decoration: none;
+    color: inherit;
+    padding: 0.75rem 3rem 0.75rem 1rem;
+    border-radius: 8px;
+    border-bottom: none;
+    margin-bottom: 2px;
     gap: 0.75rem;
-    transition: background-color 0.2s ease;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+
+    min-width: 0;
+    cursor: pointer;
 }
 
-.track-card.hoverable:hover {
-    background-color: #f9f9f9;
+.track-card:hover {
+    background-color: #f5f7fa;
+}
+
+.track-card:active {
+    transform: scale(0.99);
 }
 
 .track-card.compact {
@@ -351,9 +384,9 @@ defineExpose({
 }
 
 .track-image {
-    width: 50px;
-    height: 50px;
-    border-radius: 4px;
+    width: 52px;
+    height: 52px;
+    border-radius: 6px;
     object-fit: cover;
     flex-shrink: 0;
     display: block;
@@ -366,16 +399,17 @@ defineExpose({
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 480px){
     .track-image {
-        width: 40px;
-        height: 40px;
+        width: 48px;
+        height: 48px;
     }
 }
 
 .track-info {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 }
 
 .track-info h3 {
@@ -384,39 +418,38 @@ defineExpose({
 }
 
 .track-title {
-    font-size: clamp(12px, 3vw, 1rem);
+    font-size: clamp(0.9rem, 2vw, 1.05rem);
+    font-weight: 600;
     cursor: pointer;
     color: inherit;
     text-decoration: none;
     transition: color 0.2s ease;
-    display: inline-block;
-}
-
-.track-title.clickable:hover {
-    color: #0c4baa;
-    text-decoration: underline;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .track-artists {
-    margin: 0.25rem 0 0;
-    font-size: 0.85rem;
+    margin-top: 0.2rem;
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
     color: #666;
     line-height: 1.5;
     word-break: break-word;
 }
 
-.artist-link {
-    color: #666;
-    text-decoration: none;
-    cursor: pointer;
-    transition: color 0.2s ease;
-    display: inline;
-    font-size: clamp(9px, 3vw, 1rem);
+.artist-name {
+    color: inherit;
+    text-decoration:none;
 }
 
-.artist-link:hover {
-    color: #0c4baa;
-    text-decoration: underline;
+.artist-name:hover {
+    color:#0c4baa;
+}
+
+.artist-name-unclickable {
+    color: inherit;
+    text-decoration:none;
 }
 
 .artists-more {
@@ -429,11 +462,10 @@ defineExpose({
 
 .track-duration {
     color: #666;
-    font-size: clamp(9px, 3vw, 0.9rem);
+    font-size: 0.85rem;
     flex: 0 0 50px;
     text-align: right;
     white-space: nowrap;
-    font-feature-settings: "tnum";
 }
 
 @media (max-width: 768px) {
@@ -442,17 +474,25 @@ defineExpose({
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
     .track-duration {
-        flex: 0 0 45px;
+        display: none;
     }
 }
 
 .context-menu-container {
-    position: relative;
-    display: flex;
-    align-items: center;
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
     margin-left: 0.5rem;
+}
+
+@media(max-width: 480px){
+    .track-card {
+        padding-right: 2.5rem;
+    }
 }
 
 .context-menu-button {

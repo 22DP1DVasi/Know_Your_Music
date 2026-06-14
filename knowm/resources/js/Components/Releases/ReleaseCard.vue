@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     release: {
@@ -73,12 +73,6 @@ const truncatedArtists = computed(() => {
     return `${visibleArtists.join(', ')} +${remainingCount}`;
 });
 
-// const formattedTrackCount = computed(() => {
-//     if (!props.showTrackCount) return '';
-//     const count = props.release.tracks_count || 0;
-//     return `${count} ${count === 1 ? 'track' : 'tracks'}`;
-// });
-
 const formattedReleaseType = computed(() => {
     if (!props.showReleaseType) return '';
     const type = props.release.release_type || props.release.type || 'Album';
@@ -87,17 +81,18 @@ const formattedReleaseType = computed(() => {
 
 const handleReleaseClick = () => {
     emit('release-click', props.release);
-
-    if (props.redirectUrl) {
-        if (typeof props.redirectUrl === 'function') {
-            props.redirectUrl(props.release.slug);
-        } else {
-            router.get(props.redirectUrl);
-        }
-    } else {
-        router.get(`/releases/${props.release.slug}`);
+    if (typeof props.redirectUrl === 'function') {
+        props.redirectUrl(props.release.slug);
     }
 };
+
+const releaseHref = computed(() => {
+    if (typeof props.redirectUrl === 'string') {
+        return props.redirectUrl;
+    }
+
+    return `/releases/${props.release.slug}`;
+});
 
 const handleImageError = (event) => {
     event.target.src = props.fallbackImage;
@@ -110,7 +105,11 @@ defineExpose({
 </script>
 
 <template>
-    <div class="release-card" @click="handleReleaseClick">
+    <Link
+        :href="releaseHref"
+        class="release-card"
+        @click="handleReleaseClick"
+    >
         <div class="image-wrapper">
             <img
                 :src="imageUrl"
@@ -135,7 +134,7 @@ defineExpose({
             <!-- Papildu informācijas slots -->
             <slot name="extra-info"></slot>
         </div>
-    </div>
+    </Link>
 </template>
 
 <style scoped>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { router, usePage } from '@inertiajs/vue3';
+import { router, usePage, Link } from '@inertiajs/vue3';
 import {route} from "ziggy-js";
 
 const { t } = useI18n();
@@ -67,16 +67,21 @@ const tracksCountText = computed(() => {
 const handlePlaylistClick = () => {
     if (!props.clickable) return;
     emit('playlist-click', props.playlist);
-    if (props.redirectUrl) {
-        if (typeof props.redirectUrl === 'function') {
-            props.redirectUrl(props.playlist.slug);
-        } else {
-            router.get(props.redirectUrl);
-        }
-    } else {
-        router.get(route('playlists.show', {user: user.slug, playlist: props.playlist.slug}));
+    if (typeof props.redirectUrl === 'function') {
+        props.redirectUrl(props.playlist.slug);
     }
 };
+
+const playlistHref = computed(() => {
+    if (typeof props.redirectUrl === 'string') {
+        return props.redirectUrl;
+    }
+
+    return route('playlists.show', {
+        user: user.slug,
+        playlist: props.playlist.slug
+    });
+});
 
 const handleImageError = (event) => {
     event.target.src = props.defaultImage;
@@ -85,9 +90,10 @@ const handleImageError = (event) => {
 </script>
 
 <template>
-    <div
+    <Link
+        :href="playlistHref"
         class="playlist-card"
-        :class="{ 'clickable': clickable }"
+        :class="{ clickable }"
         @click="handlePlaylistClick"
     >
         <div class="playlist-image-wrapper">
@@ -133,7 +139,7 @@ const handleImageError = (event) => {
 
         <!-- Labais slots pielāgotām darbībām -->
         <slot name="actions"></slot>
-    </div>
+    </Link>
 </template>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     genre: {
@@ -45,35 +45,30 @@ const formattedGenreName = computed(() => {
     return name;
 });
 
-const handleGenreClick = () => {
-    emit('genre-click', props.genre);
-
-    if (props.redirectUrl) {
-        if (typeof props.redirectUrl === 'function') {
-            props.redirectUrl(props.genre.slug);
-        } else {
-            router.get(props.redirectUrl);
-        }
-    } else {
-        router.get(`/genres/${props.genre.slug}`);
+const href = computed(() => {
+    if (typeof props.redirectUrl === 'string') {
+        return props.redirectUrl;
     }
-};
+
+    return `/genres/${props.genre.slug}`;
+});
+
 
 const handleImageError = (event) => {
     event.target.src = props.fallbackImage;
 };
 
-defineExpose({
-    handleGenreClick
-});
-
 </script>
 
 <template>
-    <div class="genre-card" @click="handleGenreClick">
+    <Link
+        :href="href"
+        class="genre-card"
+    >
         <div class="image-wrapper">
             <img
                 :src="imageUrl"
+                draggable="false"
                 :alt="genre.name"
                 loading="lazy"
                 @error="handleImageError"
@@ -82,7 +77,7 @@ defineExpose({
         <div class="genre-info">
             <h3 :title="genre.name">{{ formattedGenreName }}</h3>
         </div>
-    </div>
+    </Link>
 </template>
 
 <style scoped>
