@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import { computed } from "vue";
 
 const props = defineProps({
@@ -43,14 +43,10 @@ const imageUrl = computed(() => {
 </script>
 
 <template>
-    <div
+    <Link
+        :href="`/artists/${artist.slug}`"
         class="artist-card"
         :class="wrapperClass"
-        @click="handleClick"
-        role="button"
-        tabindex="0"
-        @keydown.enter="handleClick"
-        @keydown.space.prevent="handleClick"
     >
         <div class="image-wrapper">
             <img
@@ -68,7 +64,7 @@ const imageUrl = computed(() => {
             <!-- Papildu informācijas slots -->
             <slot name="extra-info"></slot>
         </div>
-    </div>
+    </Link>
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -43,7 +43,12 @@ const handleClick = () => {
 </script>
 
 <template>
-    <div class="artist-card" :class="{ 'clickable': clickable }" @click="handleClick">
+    <Link
+        :href="`/artists/${artist.slug}`"
+        class="artist-card"
+        :class="{ 'clickable': clickable }"
+        @click="handleClick"
+    >
         <img
             :src="artist.banner_url"
             class="artist-image"
@@ -51,11 +56,15 @@ const handleClick = () => {
             loading="lazy"
             @error="(e) => e.target.src = '/images/default-artist-banner.webp'"
         />
+
         <div class="artist-info">
             <h3>{{ artist.name }}</h3>
-            <p v-if="showRole && artist.pivot.role" class="artist-role">{{ t(`artists.global.${artist.pivot.role}`) }}</p>
+
+            <p v-if="showRole && artist.pivot.role" class="artist-role">
+                {{ t(`artists.global.${artist.pivot.role}`) }}
+            </p>
         </div>
-    </div>
+    </Link>
 </template>
 
 <style scoped>
